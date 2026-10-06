@@ -1,12 +1,50 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [ master, main, dev ]
+  pull_request:
+    branches: [ master, main ]
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        script: [secret-scan, dependency-audit, security-audit, compliance-check]
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pip-audit
+          npm install -g npm-audit
+
       - name: Check bash syntax
         run: |
           for script in scripts/*.sh; do
             [ -f "$script" ] && bash -n "$script"
           done
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          format: gcc
+
+      - name: Run ${{ matrix.script }}.sh
+        run: |
+          chmod +x scripts/${{ matrix.script }}.sh
+          bash scripts/${{ matrix.script }}.sh . || true
+
+      - name: Run ${{ matrix.script }}.sh with test data
+        run: |
+          mkdir -p /tmp/test-scan
+          echo "test" > /tmp/test-scan/test.txt
+          bash scripts/${{ matrix.script }}.sh /tmp/test-scan || true
