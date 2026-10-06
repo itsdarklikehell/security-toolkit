@@ -1,12 +1,90 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master]
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Check bash syntax
         run: |
           for script in scripts/*.sh; do
             [ -f "$script" ] && bash -n "$script"
           done
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          format: tty
+
+      - name: Run secret scan
+        run: |
+          chmod +x scripts/secret-scan.sh
+          bash scripts/secret-scan.sh || true
+
+      - name: Check file permissions
+        run: |
+          for script in scripts/*.sh; do
+            if [ -f "$script" ] && [ ! -x "$script" ]; then
+              echo "ERROR: $script is not executable"
+              exit 1
+            fi
+          done
+
+      - name: Validate shell scripts with shfmt
+        uses: mvdan/shfmt@v3
+        with:
+          path: scripts/
+          diff: true
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for trailing whitespace
+        run: |
+          if grep -rn ' $' --include='*.sh' --include='*.md' --include='*.yml' .; then
+            echo "ERROR: Trailing whitespace found"
+            exit 1
+          fi
+
+      - name: Check for tabs in shell scripts
+        run: |
+          if grep -Pn '\t' scripts/*.sh; then
+            echo "ERROR: Tabs found in shell scripts (use spaces)"
+            exit 1
+          fi
+
+      - name: Check line endings
+        run: |
+          if file scripts/*.sh | grep -q CRLF; then
+            echo "ERROR: CRLF line endings found (use LF)"
+            exit 1
+          fi
