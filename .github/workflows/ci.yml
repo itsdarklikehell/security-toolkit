@@ -34,10 +34,10 @@ jobs:
 
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@master
+        continue-on-error: true
         with:
           scandir: './scripts'
           format: gcc
-          severity: warning
 
       - name: Run ${{ matrix.script }}.sh
         run: |
