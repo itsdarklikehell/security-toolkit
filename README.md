@@ -1,5 +1,7 @@
 # Security Toolkit
 
+![CI](https://img.shields.io/github/actions/workflow/status/itsdarklikehell/security-toolkit/ci.yml?branch=master) ![License](https://img.shields.io/github/license/itsdarklikehell/security-toolkit) ![Last Commit](https://img.shields.io/github/last-commit/itsdarklikehell/security-toolkit)
+
 Security scanning en auditing tools voor de GitHub Fleet Manager.
 
 ## Features
